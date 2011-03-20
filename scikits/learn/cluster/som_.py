@@ -18,23 +18,23 @@ class SelfOrganizingMap(BaseEstimator):
 
     Parameters
     ----------
-    X : ndarray
+    X: ndarray
         A M by N array of M observations in N dimensions or a length
         M array of N one-dimensional observations.
 
-    size : int
+    size: int
         Width and height of the square map as well as the number of
         centroids to generate. If init initialization string is
         'matrix', or if a ndarray is given instead, it is
         interpreted as initial cluster to use instead.
 
-    n_iterations : int
+    max_iter: int
         Number of iterations of the som algrithm to run
 
-    learning_rate : float
+    learning_rate: float
         Learning rate
 
-    init : {'random', 'matrix'}
+    init: {'random', 'matrix'}
         Method for initialization, defaults to 'random':
 
         'random': randomly points choosed
@@ -60,11 +60,11 @@ class SelfOrganizingMap(BaseEstimator):
 
     """
 
-    def __init__(self, size=16, init='random', n_iterations=64,
+    def __init__(self, size=16, init='random', max_iter=64,
                  learning_rate=1, callback=None):
         self.size = size
         self.init = init
-        self.n_iterations = n_iterations
+        self.max_iter = max_iter
         self.learning_rate = learning_rate
         self.callback = callback
 
@@ -86,23 +86,23 @@ class SelfOrganizingMap(BaseEstimator):
             self.size = self.neurons_.shape[0]
 
         # iteration loop
-        iteration = 0 
-        indices = np.random.random_integers(0, len(X)-1, self.n_iterations)
+        n_iterations = 0 
+        indices = np.random.random_integers(0, len(X) - 1, self.max_iter)
         for i in indices:
-            l = self.n_iterations / self.size
-            lr = self.learning_rate * math.exp(-iteration / l)
-            self._learn_vector(X[i], lr, iteration)
-            iteration += 1
+            l = self.max_iter / self.size
+            lr = self.learning_rate * math.exp(-n_iterations / l)
+            self._learn_vector(X[i], lr, n_iterations)
+            n_iterations += 1
             if self.callback != None:
-                self.callback(self, iteration)
+                self.callback(self, n_iterations)
 
         # assign labels
         self.labels_ = [self.bmu(x) for x in X]
         return self
 
-    def _learn_vector(self, vector, lr, iteration):
+    def _learn_vector(self, vector, lr, n_iterations):
         winner = self.bmu(vector)
-        radius = self.radius_of_the_neighbordhood(iteration)
+        radius = self.radius_of_the_neighbordhood(n_iterations)
         for n in self.neurons_in_radius(winner, radius):
             nx, ny = n
             wt = self.neurons_[nx][ny]
@@ -110,11 +110,10 @@ class SelfOrganizingMap(BaseEstimator):
             self.neurons_[nx][ny] = wt + dr * lr * (vector - wt)
 
     def bmu(self, vector):
-        """Best matching unit
-        """
+        """Best matching unit """
         assert vector.shape[0] == self.neurons_.shape[-1]
         vector = np.resize(vector, self.neurons_.shape)
-        dists = np.sum((vector - self.neurons_)**2, axis=-1)
+        dists = np.sum((vector - self.neurons_) ** 2, axis=-1)
         min = dists.argmin()
         #w = np.unravel_index(min,dists.shape)
         return divmod(min, self.size)
@@ -122,7 +121,7 @@ class SelfOrganizingMap(BaseEstimator):
     def dist(self, w, n, radius):
         wx, wy = w
         nx, ny = n
-        d = (wx - nx)**2 + (wy - ny)**2
+        d = (wx - nx) ** 2 + (wy - ny) ** 2
         # offcial paper implementation : return math.exp(-d/2*radius**2)
         return math.exp(-d / radius)
 
@@ -130,9 +129,9 @@ class SelfOrganizingMap(BaseEstimator):
         wi, wj = winner
         x = y = np.arange(self.size)
         xx, yy = np.meshgrid(x, y)
-        v = np.sqrt((xx - wi)**2 + (yy - wj)**2) < radius
+        v = np.sqrt((xx - wi) ** 2 + (yy - wj) ** 2) < radius
         return np.c_[np.nonzero(v)]
 
-    def radius_of_the_neighbordhood(self, iteration):
-        l = self.n_iterations / self.size
-        return self.size * math.exp(-iteration / l)
+    def radius_of_the_neighbordhood(self, n_iterations):
+        l = self.max_iter / self.size
+        return self.size * math.exp(-n_iterations / l)
